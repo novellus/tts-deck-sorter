@@ -1,4 +1,4 @@
-# Multi Sorter
+# Multi Sorting Bag
 
 ![image](tts_deck_sorter.jpg)
 
