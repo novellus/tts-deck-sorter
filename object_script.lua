@@ -1,5 +1,5 @@
 -- code repo: https://github.com/novellus/tts-deck-sorter
--- tabletop simulator workshop:
+-- tabletop simulator workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=2847855535
 
 
 function onLoad()
