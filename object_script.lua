@@ -1,5 +1,17 @@
 -- code repo: https://github.com/novellus/tts-deck-sorter
--- tabletop simulator workshop: 
+-- tabletop simulator workshop:
+
+
+function onLoad()
+    -- set state
+    currently_sorting = false
+    sorting_locations = {}
+    bag_sort_queue = {self}
+    num_rows = 2
+
+    -- Create UI
+    create_UI()
+end
 
 
 function gui_nop()
@@ -7,25 +19,75 @@ function gui_nop()
 end
 
 
-function onLoad()
+function create_UI()
     -- Create UI
+
+    -- bag label
     self.createButton({
         click_function = 'gui_nop',
         function_owner = self,
-        label          = 'Sorting Bag!',
-        font_color     = 'Black',
         height         = 0,  -- text display, not an actual button. There is no pure text tool.
         width          = 0,
-        position       = {0, 2, 1.2},
-        rotation       = {-45, 0, 0},
         font_size      = 120,
+        label          = 'Sorting Bag!',
         font_color     = 'White',
+        position       = {0, 2.3, 1.0},
+        rotation       = {-45, 0, 0},
     })
 
-    -- set state
-    currently_sorting = false
-    sorting_locations = {}
-    bag_sort_queue = {self}
+    -- num rows input field
+    self.createButton({
+        click_function = 'gui_nop',
+        function_owner = self,
+        height         = 0,  -- text display, not an actual button. There is no pure text tool.
+        width          = 0,
+        font_size      = 120,
+        label          = 'Number of Rows',
+        font_color     = 'White',
+        position       = {-0.15, 2.0, 1.2},
+        rotation       = {-45, 0, 0},
+    })
+
+    self.createInput({
+        input_function = 'num_rows_edited',
+        function_owner = self,
+        height         = 150,
+        width          = 150,
+        font_size      = 120,
+        value          = num_rows,
+        font_color     = 'Black',
+        color          = 'White',
+        alignment      = 3,  -- center
+        validation     = 2,  -- integer
+        position       = {0.95, 2.0, 1.2},
+        rotation       = {-45, 0, 0},
+        tooltip        = 'Sets number of rows which items are sorted into. Only affects new sorts. Click to edit, coerces to positive int.',
+    })
+end
+
+
+function num_rows_edited(obj, player_clicker_color, input_value, still_editing)
+    -- set num_rows state 
+    -- validate edit is complete and bag is not sorting
+    -- rely on built-in string validation at UI level
+
+    if not still_editing then
+        -- reject input
+        if currently_sorting then
+            printToAll('Cannot update number of rows while currently sorting! Wait for finish, update rows, and try sorting again.', 'Red')
+            return tostring(num_rows)  -- return value from this callback sets input state
+
+        -- accept input
+        else
+            -- handle empty field
+            num_rows = tonumber(input_value) or 2
+
+            -- coerce to strictly positive int
+            num_rows = math.max(1, num_rows)
+
+            return tostring(num_rows)  -- return value from this callback sets input state
+        end
+    end
 end
 
 
@@ -60,7 +122,7 @@ function relative_position(object, row_offset, column_offset, height_offset)
     relative_vector = Vector(
         -self_size.x * 2.2 * column_offset,
          self_size.y * 2 * height_offset,
-        -self_size.z * 3.2 * row_offset  -- cards are assymetricly sized
+        -self_size.z * 3.0 * row_offset  -- cards are assymetricly sized
     )
 
     -- rotate relative vector to same angle as the master bag
@@ -71,13 +133,7 @@ function relative_position(object, row_offset, column_offset, height_offset)
 
     -- transform relative vector into world position
     object_position = object.getPosition()
-
     target_position = object_position + relative_vector
-    -- Vector(
-    --     object_position.x + relative_vector.x,
-    --     object_position.y + relative_vector.y,
-    --     object_position.z + relative_vector.z
-    -- )
 
     return target_position
 end
@@ -179,7 +235,7 @@ function sort_object(object)
     destination_index = sorting_locations[sorting_key]
         
     if destination_index == nil then
-        -- determine next location by considering assigned locations
+        -- determine next location by considering already assigned locations
         -- cannot use #sorting_locations since it is not a true len operation on tables with non-numeric keys
         --     see https://www.lua.org/manual/5.3/manual.html#3.4.7
         farthest_assigned_index = -1
@@ -194,7 +250,10 @@ function sort_object(object)
     end
 
     -- move object to designated location
-    destination = relative_position(self, 1, destination_index, 1)
+    destination_row = 1 + (destination_index % (num_rows))
+    destination_col = math.floor(destination_index / num_rows)
+
+    destination = relative_position(self, destination_row, destination_col, 1)
     object.setPosition(destination)  -- instant movement
 
     -- instruct the lowest bag to sort its next object
